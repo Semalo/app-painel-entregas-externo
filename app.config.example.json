@@ -1,0 +1,11 @@
+{
+  "apps": [
+    {
+      "name": "app-hom-painelentrega-8084",
+      "script": "yarn",
+      "interpreter": "none",
+      "args": "serve -s build -p 8084",
+      "watch": true
+    }
+  ]
+}
