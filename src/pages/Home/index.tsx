@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Header } from "../../components/Header";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-
 import { MdArticle } from "react-icons/md";
 import {
   ListContainer,
