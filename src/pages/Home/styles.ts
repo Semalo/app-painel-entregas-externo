@@ -81,8 +81,8 @@ export const NumberDiv = styled.div`
   min-width: 84px;
 `;
 export const ActionsDiv = styled.div`
-  width: 84px;
-  min-width: 84px;
+  width: 44px;
+  min-width: 44px;
 `;
 
 export const BoldSpan = styled.span`

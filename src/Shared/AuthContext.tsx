@@ -44,7 +44,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
-    const tokenFromLocalStorage = localStorage.getItem("apontamento.jwt");
+    const tokenFromLocalStorage = localStorage.getItem(
+      process.env.REACT_APP_JWT_NAME || ""
+    );
+
+    console.log("tokenFromLocalStorage", tokenFromLocalStorage);
+
     if (tokenFromLocalStorage) {
       api.defaults.headers.common[
         "Authorization"
@@ -64,9 +69,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setToastMessageType(IToastType.warning);
           setToastMessage("Login Inválido!");
         });
-      console.log(response);
+
       if (response?.data?.jwt) {
-        localStorage.setItem("apontamento.jwt", response?.data?.jwt);
+        localStorage.setItem(
+          process.env.REACT_APP_JWT_NAME || "",
+          response?.data?.jwt
+        );
         const idUsuario = new TokenDecode(response.data.jwt).getIdUsuario();
         setAuthenticatedUser({ user, idUsuario });
         navigate("/products", {
@@ -87,7 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const logoff = () => {
-    localStorage.removeItem("apontamento.jwt");
+    localStorage.removeItem(process.env.REACT_APP_JWT_NAME || "");
     navigate("/");
   };
 
