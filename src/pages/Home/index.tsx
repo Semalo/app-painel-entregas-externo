@@ -23,18 +23,26 @@ import {
   NumberDiv,
   ActionsDiv,
 } from "./styles";
-import { Table, Form } from "react-bootstrap";
-
+import { Table, Form, Modal, Button } from "react-bootstrap";
 import ReactLoading from "react-loading";
 import "../../index.css";
 import { api } from "../../services/api";
 import { Pagination, Stack } from "@mui/material";
+interface IDetailInvoice {
+  DESCRICAO: string;
+  eventCategory: {
+    OPCAO: string;
+  };
+}
 
 export const Home = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState([] as INota[]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(10);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<INota>();
+  const [detailInvoice, setDetailInvoice] = useState<IDetailInvoice>();
 
   const [buttonsMenu, setButtonsMenu] = useState([
     { name: "Viagens em Aberto", selected: true, value: 1 },
@@ -43,6 +51,23 @@ export const Home = () => {
     { name: "Todas as Viagens", selected: false, value: undefined },
     { name: "Viagens Canceladas", selected: false, value: 4 },
   ]);
+
+  const [axiosConfig, setAxiosConfig] = useState({
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem(
+        process.env.REACT_APP_JWT_NAME || ""
+      )}`,
+    },
+  });
+
+  useEffect(() => {
+    const jwt = localStorage.getItem(process.env.REACT_APP_JWT_NAME || "");
+
+    setAxiosConfig({
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    getData();
+  }, []);
 
   interface INota {
     NUNOTA: number;
@@ -68,18 +93,24 @@ export const Home = () => {
   }
 
   const toggleButton = async () => {
-    setLoading(true);
-    const buttonSelected = buttonsMenu.find((item) => item.selected);
-    const response = await api.get("deliveries", {
-      params: {
-        STATUSFILTRO: buttonSelected?.value,
-        page,
-        paginate: process.env.REACT_APP_DEFAULT_PAGINATE,
-      },
-    });
+    try {
+      setLoading(true);
+      const buttonSelected = buttonsMenu.find((item) => item.selected);
+      const response = await api.get("deliveries", {
+        params: {
+          STATUSFILTRO: buttonSelected?.value,
+          page,
+          paginate: process.env.REACT_APP_DEFAULT_PAGINATE,
+        },
+        headers: axiosConfig.headers,
+      });
 
-    setData(response.data);
-    setLoading(true);
+      setData(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -87,19 +118,23 @@ export const Home = () => {
   }, [buttonsMenu]);
 
   const getData = async () => {
-    setLoading(true);
-    const response = await api.get("deliveries", {
-      params: {
-        page,
-        paginate: process.env.REACT_APP_DEFAULT_PAGINATE,
-      },
-    });
+    try {
+      setLoading(true);
+      const response = await api.get("deliveries", {
+        params: {
+          page,
+          paginate: process.env.REACT_APP_DEFAULT_PAGINATE,
+        },
+        headers: axiosConfig.headers,
+      });
 
-    setData(response.data);
+      setData(response.data);
 
-    console.log(response);
-
-    setLoading(false);
+      setLoading(false);
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -112,6 +147,40 @@ export const Home = () => {
   ) => {
     setPage(value);
   };
+
+  const toggleInvoice = (invoice: INota) => {
+    setSelectedRecord(invoice);
+  };
+
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const loadDetail = async () => {
+    try {
+      setLoadingDetail(true);
+      const response = await api.get("event", {
+        params: {
+          nunota: selectedRecord?.NUNOTA,
+          page,
+          paginate: process.env.REACT_APP_DEFAULT_PAGINATE,
+        },
+        headers: axiosConfig.headers,
+      });
+
+      console.log(response);
+      if (response.data.length > 0) setShowModal(true);
+
+      setDetailInvoice(response.data[0]);
+
+      setLoadingDetail(false);
+    } catch (error) {
+      console.log(error);
+      setLoadingDetail(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDetail();
+  }, [selectedRecord]);
 
   return (
     <div
@@ -144,11 +213,7 @@ export const Home = () => {
                 justifyContent: "center",
                 flexDirection: "row",
                 width: "100%",
-                // background: "#dd5400",
-                // padding: "4px",
-                // gap: "16px",
                 borderRadius: "0.2em",
-                // border: "0.1px #dd5400 solid",
               }}
             >
               {buttonsMenu.map((button) => (
@@ -213,7 +278,7 @@ export const Home = () => {
                 <BoldSpan>Observação</BoldSpan>
               </NoteDiv>
             </div>
-            {data.map((nota, idx) => (
+            {data.map((invoice, idx) => (
               <div
                 style={{
                   display: "flex",
@@ -229,27 +294,31 @@ export const Home = () => {
                 key={idx}
               >
                 <ActionsDiv>
-                  <MdEventAvailable size={30} />
-                  <MdPhotoCamera size={30} />
+                  <MdEventAvailable
+                    style={{ cursor: "pointer" }}
+                    size={30}
+                    onClick={() => toggleInvoice(invoice)}
+                  />
                 </ActionsDiv>
-                <NumberDiv>{nota.NUMNOTA}</NumberDiv>
-                <StatusDiv>{nota.STATUS}</StatusDiv>
-                <LicencePlateDiv>{nota.PLACA}</LicencePlateDiv>
-                <ContactDiv>{nota.MOTORISTA}</ContactDiv>
+                <NumberDiv>{invoice.NUMNOTA}</NumberDiv>
+                <StatusDiv>{invoice.STATUS}</StatusDiv>
+                <LicencePlateDiv>{invoice.PLACA}</LicencePlateDiv>
+                <ContactDiv>{invoice.MOTORISTA}</ContactDiv>
                 <DateDiv>
-                  {nota.DT_SAIDA &&
-                    new Date(nota.DT_SAIDA).toLocaleDateString()}
+                  {invoice.DT_SAIDA &&
+                    new Date(invoice.DT_SAIDA).toLocaleDateString()}
                 </DateDiv>
-                <DestinyDiv>{nota.CIDADE}</DestinyDiv>
+                <DestinyDiv>{invoice.CIDADE}</DestinyDiv>
                 <DateDiv>
-                  {nota.DT_PREV && new Date(nota.DT_PREV).toLocaleDateString()}
+                  {invoice.DT_PREV &&
+                    new Date(invoice.DT_PREV).toLocaleDateString()}
                 </DateDiv>
 
                 <DateDiv>
-                  {nota.DT_AGENDA &&
-                    new Date(nota.DT_AGENDA).toLocaleDateString()}
+                  {invoice.DT_AGENDA &&
+                    new Date(invoice.DT_AGENDA).toLocaleDateString()}
                 </DateDiv>
-                <NoteDiv>{nota.OBSERVACAO}</NoteDiv>
+                <NoteDiv>{invoice.OBSERVACAO}</NoteDiv>
               </div>
             ))}
           </ListContainer>
@@ -265,6 +334,17 @@ export const Home = () => {
           </PaginationContainer>
         </MainContainer>
       )}
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{detailInvoice?.eventCategory?.OPCAO}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>{detailInvoice?.DESCRICAO}</Modal.Body>
+        <Modal.Footer>
+          <Button variant="warning" onClick={() => setShowModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
