@@ -210,7 +210,7 @@ export const Home = () => {
         height: "100vh",
       }}
     >
-      <Header label={`Home`} />
+      <Header label={`Torre Logística (Teste)`} />
 
       {loading && (
         <div style={{ display: "flex", justifyContent: "center" }}>
