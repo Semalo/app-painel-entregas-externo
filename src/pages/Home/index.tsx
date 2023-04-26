@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Header } from "../../components/Header";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 
-import {
-  MdPhotoCamera,
-  MdEventAvailable,
-  MdOutlineQrCode,
-  MdSearch,
-} from "react-icons/md";
+import { MdArticle } from "react-icons/md";
 import {
   ListContainer,
   MainContainer,
@@ -23,16 +18,52 @@ import {
   NumberDiv,
   ActionsDiv,
 } from "./styles";
-import { Table, Form, Modal, Button } from "react-bootstrap";
+import { Modal, Button } from "react-bootstrap";
 import ReactLoading from "react-loading";
 import "../../index.css";
 import { api } from "../../services/api";
 import { Pagination, Stack } from "@mui/material";
+import {
+  RiEmotionHappyFill,
+  RiEmotionUnhappyFill,
+  RiEmotionNormalFill,
+} from "react-icons/ri";
+
 interface IDetailInvoice {
-  DESCRICAO: string;
+  DESCRICAO?: string;
+  LAT?: string;
+  LONG?: string;
   eventCategory: {
     OPCAO: string;
   };
+}
+interface INota {
+  NUNOTA: number;
+  CODEMP?: number;
+  NUMNOTA?: number;
+  ORDEMCARGA?: number;
+  CODPARC?: number;
+  PARCEIRO?: string;
+  CIDADE?: string;
+  UF?: string;
+  PLACA?: string;
+  MOTORISTA?: string;
+  VENDEDOR?: string;
+  DT_SAIDA?: string;
+  DT_PEDIDO?: string;
+  DT_PREV?: string;
+  DT_AGENDA?: string | null;
+  M3?: string;
+  PESOBRUTO?: string;
+  VLRLIQNOTA?: string;
+  AD_STATUSPED?: string;
+  STATUS?: string;
+  OBSERVACAO?: string;
+  COR?: number;
+}
+export interface IImage {
+  img: string;
+  CAMINHO_FOTO: string;
 }
 
 export const Home = () => {
@@ -52,6 +83,12 @@ export const Home = () => {
     { name: "Viagens Canceladas", selected: false, value: 4 },
   ]);
 
+  const API_KEY = `${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}`;
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: API_KEY,
+  });
+
   const [axiosConfig, setAxiosConfig] = useState({
     headers: {
       Authorization: `Bearer ${localStorage.getItem(
@@ -68,29 +105,6 @@ export const Home = () => {
     });
     getData();
   }, []);
-
-  interface INota {
-    NUNOTA: number;
-    CODEMP?: number;
-    NUMNOTA?: number;
-    ORDEMCARGA?: number;
-    CODPARC?: number;
-    PARCEIRO?: string;
-    CIDADE?: string;
-    UF?: string;
-    PLACA?: string;
-    MOTORISTA?: string;
-    VENDEDOR?: string;
-    DT_SAIDA?: string;
-    DT_PREV?: string;
-    DT_AGENDA?: string | null;
-    M3?: string;
-    PESOBRUTO?: string;
-    VLRLIQNOTA?: string;
-    AD_STATUSPED?: string;
-    STATUS?: string;
-    OBSERVACAO?: string;
-  }
 
   const toggleButton = async () => {
     try {
@@ -150,23 +164,33 @@ export const Home = () => {
 
   const toggleInvoice = (invoice: INota) => {
     setSelectedRecord(invoice);
+    loadDetail(invoice);
   };
 
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [photoData, setPhotoData] = useState<IImage[]>([]);
 
-  const loadDetail = async () => {
+  const loadDetail = async (invoice: INota) => {
     try {
       setLoadingDetail(true);
       const response = await api.get("event", {
         params: {
-          nunota: selectedRecord?.NUNOTA,
+          nunota: invoice?.NUNOTA,
           page,
           paginate: process.env.REACT_APP_DEFAULT_PAGINATE,
         },
         headers: axiosConfig.headers,
       });
 
-      console.log(response);
+      const photoResponse = await api.get(
+        `/ticket/id?nunota=${invoice?.NUNOTA}`,
+        {
+          headers: axiosConfig.headers,
+        }
+      );
+
+      setPhotoData(photoResponse?.data);
+
       if (response.data.length > 0) setShowModal(true);
 
       setDetailInvoice(response.data[0]);
@@ -177,10 +201,6 @@ export const Home = () => {
       setLoadingDetail(false);
     }
   };
-
-  useEffect(() => {
-    loadDetail();
-  }, [selectedRecord]);
 
   return (
     <div
@@ -263,6 +283,9 @@ export const Home = () => {
                 <BoldSpan>Contato</BoldSpan>
               </ContactDiv>
               <DateDiv>
+                <BoldSpan>Data Pedido</BoldSpan>
+              </DateDiv>
+              <DateDiv>
                 <BoldSpan>Data Saída</BoldSpan>
               </DateDiv>
               <DestinyDiv>
@@ -294,21 +317,37 @@ export const Home = () => {
                 key={idx}
               >
                 <ActionsDiv>
-                  <MdEventAvailable
+                  <MdArticle
                     style={{ cursor: "pointer" }}
-                    size={30}
+                    size={20}
                     onClick={() => toggleInvoice(invoice)}
                   />
                 </ActionsDiv>
                 <NumberDiv>{invoice.NUMNOTA}</NumberDiv>
-                <StatusDiv>{invoice.STATUS}</StatusDiv>
+                <StatusDiv>
+                  {invoice?.COR === 3 && (
+                    <RiEmotionUnhappyFill size={20} color="red" />
+                  )}
+                  {invoice?.COR === 2 && (
+                    <RiEmotionNormalFill size={20} color="FFC107" />
+                  )}
+                  {invoice?.COR === 1 && (
+                    <RiEmotionHappyFill size={20} color="green" />
+                  )}
+
+                  {invoice.STATUS}
+                </StatusDiv>
                 <LicencePlateDiv>{invoice.PLACA}</LicencePlateDiv>
                 <ContactDiv>{invoice.MOTORISTA}</ContactDiv>
                 <DateDiv>
                   {invoice.DT_SAIDA &&
                     new Date(invoice.DT_SAIDA).toLocaleDateString()}
                 </DateDiv>
-                <DestinyDiv>{invoice.CIDADE}</DestinyDiv>
+                <DateDiv>
+                  {invoice?.DT_PEDIDO &&
+                    new Date(invoice?.DT_PEDIDO).toLocaleDateString()}
+                </DateDiv>
+                <DestinyDiv>{`${invoice?.CIDADE}-${invoice?.UF}`}</DestinyDiv>
                 <DateDiv>
                   {invoice.DT_PREV &&
                     new Date(invoice.DT_PREV).toLocaleDateString()}
@@ -334,11 +373,75 @@ export const Home = () => {
           </PaginationContainer>
         </MainContainer>
       )}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+      <Modal
+        size="lg"
+        aria-labelledby="contained-modal-title-vcenter"
+        centered
+        style={{ minWidth: "900px" }}
+        show={showModal}
+        onHide={() => setShowModal(false)}
+      >
         <Modal.Header closeButton>
           <Modal.Title>{detailInvoice?.eventCategory?.OPCAO}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>{detailInvoice?.DESCRICAO}</Modal.Body>
+        <Modal.Body>
+          <div style={{ width: "100%", paddingBottom: "16px" }}>
+            {detailInvoice?.DESCRICAO}
+          </div>
+          <div style={{ display: "flex", width: "100%" }}>
+            {photoData.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  width: "100%",
+                  maxHeight: "400px",
+                  overflowY: "scroll",
+                }}
+              >
+                {photoData.map((image) => (
+                  <div
+                    style={{
+                      padding: "4px",
+                    }}
+                  >
+                    <img
+                      style={{ width: "100%", height: "auto" }}
+                      src={image?.CAMINHO_FOTO.replace(
+                        "public",
+                        process.env.REACT_APP_BACKEND_URL || ""
+                      )}
+                      alt="imagem"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", width: "100%" }}>
+              {isLoaded && detailInvoice?.LAT && detailInvoice?.LONG && (
+                <GoogleMap
+                  mapContainerStyle={{
+                    width: "400px",
+                    height: "400px",
+                  }}
+                  center={{
+                    lat: parseFloat(detailInvoice?.LAT),
+                    lng: parseFloat(detailInvoice?.LONG),
+                  }}
+                  zoom={15}
+                >
+                  <Marker
+                    position={{
+                      lat: parseFloat(detailInvoice?.LAT),
+                      lng: parseFloat(detailInvoice?.LONG),
+                    }}
+                  />
+                </GoogleMap>
+              )}
+            </div>
+          </div>
+        </Modal.Body>
+
         <Modal.Footer>
           <Button variant="warning" onClick={() => setShowModal(false)}>
             Close
