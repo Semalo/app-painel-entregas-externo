@@ -304,7 +304,7 @@ export const Home = () => {
               <div
                 style={{
                   display: "flex",
-                  marginBottom: "8px",
+                  marginBottom: "2px",
                   justifyContent: "flex-start",
                   flexDirection: "row",
                   width: "100%",
@@ -312,6 +312,9 @@ export const Home = () => {
                   padding: "4px",
                   paddingBottom: "0px",
                   paddingTop: "0px",
+                  borderRadius: "0.2em",
+                  border: "0.1px solid #ff8000",
+                  fontSize: "0.7rem",
                 }}
                 key={idx}
               >
